@@ -17,3 +17,4 @@ class GreedyCTCDecoder(torch.nn.Module):
         indices = torch.unique_consecutive(indices, dim=-1)
         indices = [i for i in indices if i != self.blank]
         return "".join([self.labels[i] for i in indices])
+

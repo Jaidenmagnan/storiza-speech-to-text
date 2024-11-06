@@ -1,7 +1,9 @@
 # includes
 import torch
 import torchaudio
+#from beam import DecoderRNN
 from decoder import GreedyCTCDecoder
+from spellchecker import SpellChecker
 import IPython
 import matplotlib.pyplot as plt
 import argparse
@@ -12,6 +14,41 @@ import argparse
 
 
 # a dataset https://huggingface.co/datasets/Nexdata/American_Children_Speech_Data_by_Microphone/blob/main/T0003G0036S0001.wav
+
+def spell_check_and_correct(input_string):
+    spell = SpellChecker()
+
+    words = input_string.split()
+
+    corrected_words = [spell.correction(word) if spell.correction(word) is not None else word for word in words]
+
+
+    #corrected_string = ' '.join(corrected_words)
+
+    return corrected_words
+
+def check_percentage(sample_file, test_file):
+    n = 0
+    total_correct = 0
+    sample_file = sample_file.split()
+    test_file = test_file.split()
+    print(sample_file, test_file)
+    for i in range(len(sample_file)):
+        n += 1
+        if i < len(test_file) and  test_file[i] == sample_file[i]:
+            total_correct += 1
+
+
+    return float(float(total_correct) / float(n))
+def get_labels():
+    # Standard character set (modify based on the task/language)
+    return ["<pad>",  # Padding token
+    "|",      # Word separator (space)
+    "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", 
+    "r", "s", "t", "u", "v", "w", "x", "y", "z", "'",
+    "<unk>",  # Unknown token
+    "<ctc_blank>"  # CTC blank token
+    ]
 
 
 # helper function to plot features
@@ -100,12 +137,25 @@ def main():
 
     plot_emissions(emission=emission, bundle=bundle)
 
+
+    #embedding_size = 256   
+    #hidden_size = 512      
+    #output_size = len(bundle.get_labels)  
+    #cell_type = 'LSTM'     
+
+    #decoder = DecoderRNN()
+
     # this is when the model actually decodes our sample. We are using a GREEDY alogirthm for this approach.
-    decoder = GreedyCTCDecoder(labels=bundle.get_labels())
+    decoder = GreedyCTCDecoder(bundle.get_labels())
     transcript = decoder(emission[0])
 
-    print(transcript)
-    IPython.display.Audio(SPEECH_FILE)
+    #print(transcript)
+    #IPython.display.Audio(SPEECH_FILE)
+
+    transcript = str(transcript).replace("|", " ")
+    print((' '.join(spell_check_and_correct(transcript))).lower())
+
+
 
 
 if __name__ == "__main__":
