@@ -8,6 +8,71 @@ from os import path
 import csv
 import re
 
+import os
+import subprocess
+
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Collect data
+def plot(results_dir="results"):
+    percentages = {}
+    for filename in os.listdir(results_dir):
+        if filename.endswith(".csv"):
+            filepath = os.path.join(results_dir, filename)
+            df = pd.read_csv(filepath)  # Read CSV
+
+            # Count ones and calculate percentage
+            ones_count = df.iloc[:, 1].sum()  # Sum the second column (0s and 1s)
+            total_count = len(df)
+            percentage = (ones_count / total_count) * 100 if total_count > 0 else 0
+
+            percentages[filename] = percentage
+
+    # Plot bar chart
+    plt.figure(figsize=(10, 5))
+    plt.bar(percentages.keys(), percentages.values(), color='skyblue')
+    plt.xticks(rotation=45, ha="right")  # Rotate x labels for readability
+    plt.ylabel("Percentage of Ones (%)")
+    plt.title("Percentage of Ones in CSV Files")
+    plt.tight_layout()
+
+    # Save or show plot
+    plt.savefig("results_percentage_plot.png")  # Save the plot as an image
+    plt.show()
+
+def concat(csv_file):
+        # Read the CSV and concatenate the first column
+    text = []
+    with open(csv_file, newline='', encoding='utf-8') as f:
+        reader = csv.reader(f)
+        next(reader)  # Skip the header
+        for row in reader:
+            text.append(row[0])  # First column (text)
+
+    # Convert list to a single string
+    result = " ".join(text)
+
+    # Print or save to a file
+    return result
+
+
+def transform():
+    input_dir = "testcases"
+    output_dir = "temp"
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    for filename in os.listdir(input_dir):
+        if filename.endswith(".webm"):
+            input_path = os.path.join(input_dir, filename)
+            output_filename = os.path.splitext(filename)[0] + ".wav"
+            output_path = os.path.join(output_dir, output_filename)
+
+            subprocess.run(["ffmpeg", "-i", input_path, "-q:a", "0", "-map", "a", output_path], check=True)
+
+    print("Conversion complete.")
+
 def compare_strings(real_string, transcribed_string, output_file="comparison_results.csv"):
     """
     Compare words in a real string with words in a transcribed string.
@@ -61,29 +126,22 @@ def read_file_to_string(file_path):
         return ""
 
 def main():
-    AUDIO_FILE = path.join(path.dirname(path.realpath(__file__)), "english.wav")
-    # AUDIO_FILE = path.join(path.dirname(path.realpath(__file__)), "french.aiff")
-    # AUDIO_FILE = path.join(path.dirname(path.realpath(__file__)), "chinese.flac")
-
-    # use the audio file as the audio source
-    r = sr.Recognizer()
-    with sr.AudioFile(AUDIO_FILE) as source:
-        audio = r.record(source)  # read the entire audio file
-
-    # recognize speech using Google Speech Recognition
-    trancription = ""
-    try:
-        # for testing purposes, we're just using the default API key
-        # to use another API key, use `r.recognize_google(audio, key="GOOGLE_SPEECH_RECOGNITION_API_KEY")`
-        # instead of `r.recognize_google(audio)`
-        transcription = r.recognize_google(audio)
-    #    print("Google Speech Recognition thinks you said " + transcription)
-    except sr.UnknownValueError:
-        print("Google Speech Recognition could not understand audio")
-    #except sr.RequestError as e:
-    #    print("Could not request results from Google Speech Recognition service; {0}".format(e))
-    real = read_file_to_string("at.txt")
-    compare_strings(real, transcription)
+    transform()
+    d = "temp"
+    for filename in os.listdir(d):
+        AUDIO_FILE = path.join(path.dirname(path.realpath(__file__)), "temp/"+filename)
+        r = sr.Recognizer()
+        with sr.AudioFile(AUDIO_FILE) as source:
+            audio = r.record(source)  # read the entire audio file
+        trancription = ""
+        try:
+            transcription = r.recognize_google(audio)
+        except sr.UnknownValueError:
+            print("Google Speech Recognition could not understand audio")
+        #real = read_file_to_string("at.txt")
+        real = concat("transcriptions/"+filename[:-4] + "_words.csv")
+        compare_strings(real, transcription, "results/" + filename[:-4]+"_results.csv")
+    plot()
 
 main()
     
